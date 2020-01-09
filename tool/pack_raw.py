@@ -23,7 +23,7 @@ def covnert_to_channel_first(channel_last_img):
     return channel_fist_img
 
 def load_raw(img_path):
-    ratio = 300
+    ratio = 30
     raw = rawpy.imread(img_path)
     input_full = np.expand_dims(pack_raw(raw), axis=0) * ratio
     input_full = np.minimum(input_full, 1.0)
