@@ -1,27 +1,43 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import numpy as np
-import os,re
-# from network import SID
-from network import resieze_SID
+from load_img import pack_rgb
+import os,re,glob
 from tool import pack_raw as pack_raw
 from tensorflow.python import pywrap_tensorflow
 from PIL import Image
 import matplotlib.pyplot as plt
 import time
-import tensorflow as tf
-from tensorflow.keras import layers
-from tensorflow import keras
-from network.UpSampleConcat import UpSampleConcat as UpSampleConcat
+from network import SID
+from network import tool
+# from network import resieze_SID
+# from network import  resize_SIDto3
 
 
 #input image path
-input_path = "./dataset/Sony/short/00001_00_0.1s.ARW"
+input_dir = "./dataset/"
+# in_name = "1.bmp"
+# in_name = "fkdjn.jpg"
+# in_name = "gra.jpg"
+# in_name = "circles24.jpg"
+# in_name = "LumaZonePlate.png"
+# in_name = "rings.png"
+# in_name = "Zone_Plate_Bicubic.png"
+# in_name = "cornsweetBMP.bmp"
 
+# input_dir = "./dataset/Sony/short/"
+gt_dir = "./dataset/Sony/long/"
+# in_name = "00001_00_0.1s.ARW"
+# in_name = "00001_00_0.04s.ARW"
+in_name = "00014_00_10s.ARW"
+# input_dir = "./dataset/"
+# in_name = "BRTB7511.DNG"
+# in_name = "bmp2raw.raw"
+# in_name = 'noise2.bmp'
 #checkpoint file path
 sony_checkpoint_dir = "./checkpoint/Sony/"
-
 result_dir = './reduce_layer'
+processing_dir = './process'
 
 
 __re_digits = re.compile(r'(\d+)')
@@ -100,15 +116,26 @@ def load_weight(reader, var_to_shape_map, model):
 
 if __name__ == '__main__':
 
-    # load input image
-    # input full is NHWC
-    input_full = pack_raw.load_raw(input_path)
+    # # load input image
+    # # input full is NHWC
+    # # input image is short exposure time
+    # input_full = pack_raw.load_raw(in_name, gt_dir, input_dir)
+
+    #
+    # ratio_list = [1, 10, 20 ,30]
+    # for i in range(len(ratio_list)):
+    #     input_full = pack_raw.load_raw2(in_name,input_dir, ratio=ratio_list[i])
+    # input_full = pack_raw.load_raw2(in_name,input_dir, ratio=10)
+    # input_full =  pack_rgb.bmp2png(input_dir, in_name , ratio=ratio_list[i])
+
+    input_full = pack_raw.load_raw2(in_name,gt_dir, ratio= 1)
     input_shape = input_full.shape
 
     reader, var_to_shape_map = get_node(sony_checkpoint_dir)
     # build model
-    # model = SID.SID()
-    model = resieze_SID.SID()
+    model, model_name = SID.SID()
+    # model, model_name = resieze_SID.SID()
+    # model, model_name = resize_SIDto3.SID()
     print(model.summary())
 
     # load weight
@@ -116,20 +143,29 @@ if __name__ == '__main__':
 
     # output, pool1, up6,conv6,conv5,conv4 = model(input_full)
     star_time = time.time()
-    output = model(input_full)
+    output, conv1 = model(input_full)
     end_time = time.time()
     print ("the runtime is {}".format(end_time-star_time))
 
     #original runtime 4.222529649734497
     #rewrite runtime 2.8887720108032227
-    output = np.minimum(np.maximum(output, 0), 1)
+    #rewriteto3 runtime 1.9794270992279053
+    #输出中间过程图
+    # tool.write_img(conv1, processing_dir, model_name, in_name)
+    # tool.write_img_ratio(conv1, processing_dir, model_name, in_name, ratio=10)
+    # output = np.minimum(np.maximum(output, 0), 1)
     output = output[0, :, :, :]
-    print (output)
+    # print (output)
 
-    # #图像输出
+    # #plt图像输出
     plt.axis("off")
     plt.imshow(output)
-    savename = os.path.join(result_dir, 'whole_image_rewrite.png')  # the runtime is 5.30000114441
+    # savename = os.path.join(result_dir, 'whole_image_rewriteto3.png')
+    savename = os.path.join(result_dir, '{}_{}'.format(os.path.splitext(in_name)[0], model_name) + '.png')
+    # savename = os.path.join(result_dir, '{}_{}_{}'.format(os.path.splitext(in_name)[0], model_name, ratio_list[i]) + '.jpg')
+    # savename = os.path.join(result_dir, '{}_{}_{}'.format(os.path.splitext(in_name)[0], model_name, 10) + '.png')
+
+
 
     if not os.path.isdir(result_dir):
         os.makedirs(result_dir)
@@ -138,52 +174,3 @@ if __name__ == '__main__':
     plt.savefig(savename, dpi=600)
     print(savename)
     plt.close()
-# [[[0.05170439 0.04130556 0.02457193]
-#   [0.04224291 0.04398747 0.01808512]
-#   [0.03502263 0.03482097 0.02167565]
-#   ...
-#   [0.03027131 0.02045538 0.00977623]
-#   [0.0436894  0.03676117 0.02933072]
-#   [0.04960163 0.04767065 0.02955819]]
-#
-#  [[0.04433307 0.04613304 0.01944414]
-#   [0.03668036 0.03158956 0.01338341]
-#   [0.02390988 0.03853033 0.02861832]
-#   ...
-#   [0.01641053 0.01573719 0.01115987]
-#   [0.02971533 0.01478659 0.01235973]
-#   [0.04289033 0.03173914 0.02580509]]
-#
-#  [[0.03233987 0.02192079 0.01070535]
-#   [0.02021698 0.01654663 0.00200317]
-#   [0.0149487  0.01415355 0.00226102]
-#   ...
-#   [0.01595008 0.00931536 0.00902168]
-#   [0.01594021 0.01874873 0.01243978]
-#   [0.03380945 0.02765612 0.02164668]]
-#
-#  ...
-#
-#  [[0.17841052 0.13733554 0.09844085]
-#   [0.1553575  0.11781669 0.08757261]
-#   [0.14404035 0.09236483 0.06319447]
-#   ...
-#   [0.20256026 0.15953605 0.13969915]
-#   [0.19027425 0.15405886 0.13181533]
-#   [0.18481822 0.15002836 0.12283324]]
-#
-#  [[0.16667512 0.13090461 0.09535714]
-#   [0.14625235 0.11948977 0.08806553]
-#   [0.14095426 0.09809434 0.07250495]
-#   ...
-#   [0.19367583 0.15786423 0.13696972]
-#   [0.17925838 0.15548451 0.13355258]
-#   [0.17190577 0.14136635 0.11320847]]
-#
-#  [[0.1560206  0.12754107 0.09507387]
-#   [0.14241089 0.1159236  0.09048896]
-#   [0.14475685 0.11395253 0.08114915]
-#   ...
-#   [0.18900254 0.15651557 0.13071345]
-#   [0.18220535 0.15526013 0.12403826]
-#   [0.16399236 0.14208652 0.10823467]]]

@@ -16,6 +16,11 @@ class UpSampleConcat(layers.Layer):
 
 
     def call(self, x1,x2):
+        """
+        :param x1: conv5
+        :param x2: conv4
+        :return:
+        """
         deconv = tf.nn.conv2d_transpose(x1, self.W, tf.shape(x2),
                                         strides=[1, self.pool_size, self.pool_size, 1])
         deconv_output = layers.concatenate([deconv,x2], axis = 3)
